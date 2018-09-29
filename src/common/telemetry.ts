@@ -34,7 +34,15 @@ export class Telemetry implements ITelemetry {
 class VSSettings implements ISettings {
 	private _config: vscode.WorkspaceConfiguration;
 	constructor(private readonly _context: vscode.ExtensionContext) {
-		this._config = vscode.workspace.getConfiguration('telemetry');
+		const deprecatedConfig = vscode.workspace.getConfiguration('telemetry');
+		const deprecatedOptout = deprecatedConfig.get('optout');
+		const config = vscode.workspace.getConfiguration('githubPullRequests.telemetry');
+		if (deprecatedOptout) {
+			config.update('optout', deprecatedOptout);
+			deprecatedConfig.update('optout', undefined);
+		}
+
+		this._config = config;
 	}
 	getItem(key: string): Promise<string> {
 		switch (key) {

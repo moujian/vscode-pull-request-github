@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { Configuration, IHostConfiguration } from './configuration';
 import { keychain } from '../common/keychain';
 
-const SETTINGS_NAMESPACE = 'github';
+const SETTINGS_NAMESPACE = 'githubPullRequests';
 const HOSTS_KEY = 'hosts';
 const CREDENTIAL_SERVICE = 'vscode-pull-request-github';
 
@@ -97,10 +97,18 @@ export class VSCodeConfiguration extends Configuration {
 	public async loadConfiguration(): Promise<void> {
 		this.reset();
 
+		const deprecatedConfig = vscode.workspace.getConfiguration('github');
 		const config = vscode.workspace.getConfiguration(SETTINGS_NAMESPACE);
-		let defaultEntry: IHostConfiguration[] = [];
-		let configHosts = config.get(HOSTS_KEY, defaultEntry);
+		const defaultEntry: IHostConfiguration[] = [];
+		const deprecatedHosts = deprecatedConfig.get(HOSTS_KEY, defaultEntry);
 
+		// If the old entry exists, copy it to the new entry and remove the old.
+		if (deprecatedHosts) {
+			await config.update(HOSTS_KEY, deprecatedHosts);
+			await deprecatedConfig.update(HOSTS_KEY, undefined);
+		}
+
+		const configHosts = config.get(HOSTS_KEY, defaultEntry);
 		configHosts.forEach(c => {
 			if (!c.host) {
 				c.host = '';
@@ -110,6 +118,7 @@ export class VSCodeConfiguration extends Configuration {
 				c.host = c.host.slice(0, -1);
 			}
 		});
+
 		return Promise.all(configHosts.map(async c => {
 			// if the token is not in the user settings file, load it from the system credential manager
 			if (c.token === 'system') {
